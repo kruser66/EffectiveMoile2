@@ -5,10 +5,10 @@ import json
 
 
 class Transaction(BaseModel):
-    date: str = Field(..., description="Дата транзакции в формате YYYY-MM-DD")
-    category: Literal['Доход', 'Расход'] = Field(..., description="Категория транзакции: 'Доход' или 'Расход'")
-    amount: int = Field(..., description="Сумма транзакции")
-    description: str = Field(..., description="Описание транзакции")
+    date: str = Field('Дата', description='Дата транзакции в формате YYYY-MM-DD')
+    category: Literal['Доход', 'Расход'] = Field('Категория', description="Категория транзакции: 'Доход' или 'Расход'")
+    amount: int = Field('Сумма', description='Сумма транзакции')
+    description: str = Field('Описание', description='Описание транзакции')
 
     @field_validator('date')
     def validate_date(cls, v):
@@ -34,7 +34,7 @@ class Wallet:
 
     def load_transactions(self) -> List[Union[Income, Expense]]:
         try:
-            with open(self.filename, 'r') as file:
+            with open(self.filename, 'r', encoding='utf-8') as file:
                 transactions_data = json.load(file)
                 return [
                     Income(**data) if data['category'] == 'Доход' else Expense(**data) for data in transactions_data
@@ -43,8 +43,14 @@ class Wallet:
             return []
 
     def save_transactions(self):
-        with open(self.filename, 'w') as file:
-            json.dump([t.model_dump() for t in self.transactions], file, indent=4, default=str)
+        with open(self.filename, 'w', encoding='utf-8') as file:
+            json.dump(
+                [t.model_dump() for t in self.transactions],
+                file,
+                indent=4,
+                default=str,
+                ensure_ascii=False
+            )
 
     def add_transaction(self, transaction: Union[Income, Expense]):
         self.transactions.append(transaction)
@@ -62,15 +68,15 @@ class Wallet:
 
     def display_transactions(self):
         for index, transaction in enumerate(self.transactions):
-            print(f"Индекс: {index}, Транзакция: {transaction.model_dump()}")
+            print(f'Индекс: {index}, Транзакция: {transaction.model_dump()}')
 
     def display_balance(self):
         incomes = sum(t.amount for t in self.transactions if isinstance(t, Income))
         expenses = sum(t.amount for t in self.transactions if isinstance(t, Expense))
         balance = incomes - expenses
-        print(f"Баланс: {balance}")
-        print(f"Доходы: {incomes}")
-        print(f"Расходы: {expenses}")
+        print(f'Баланс: {balance}')
+        print(f'Доходы: {incomes}')
+        print(f'Расходы: {expenses}')
 
 
 def input_transaction_data(transaction: Optional[Transaction] = None) -> dict:
@@ -79,16 +85,16 @@ def input_transaction_data(transaction: Optional[Transaction] = None) -> dict:
         for field in transaction.model_fields:
             if field != 'category':  # Пропускаем поле категории
                 value = input(
-                    f"Введите новое значение для {field} \
-                        или оставьте пустым, чтобы не менять ({getattr(transaction, field)}): "
+                    f'Введите новое значение для `{field}` или оставьте пустым, чтобы не менять'
+                    f'({getattr(transaction, field)}): '
                 )
                 if value:
                     data[field] = value
         data['category'] = transaction.category
     else:
-        data['date'] = input_date("Введите дату (YYYY-MM-DD): ")
-        data['amount'] = input_amount("Введите сумму: ")
-        data['description'] = input("Введите описание: ")
+        data['date'] = input_date('Введите дату (YYYY-MM-DD): ')
+        data['amount'] = input_amount('Введите сумму: ')
+        data['description'] = input('Введите описание: ')
     return data
 
 
@@ -115,15 +121,15 @@ def main():
     wallet = Wallet('transactions.json')
 
     while True:
-        print("\n1. Вывод транзакций")
-        print("2. Добавление дохода")
-        print("3. Добавление расхода")
-        print("4. Редактирование записи")
-        print("5. Поиск по записям")
-        print("6. Вывод баланса")
-        print("7. Выход")
+        print('\n1. Вывод транзакций')
+        print('2. Добавление дохода')
+        print('3. Добавление расхода')
+        print('4. Редактирование записи')
+        print('5. Поиск по записям')
+        print('6. Вывод баланса')
+        print('7. Выход')
 
-        choice = input("Выберите действие: ")
+        choice = input('Выберите действие: ')
 
         try:
             match choice:
@@ -138,28 +144,28 @@ def main():
                     expense = Expense(**data)
                     wallet.add_transaction(expense)
                 case '4':
-                    index = int(input("Введите индекс записи для редактирования: "))
+                    index = int(input('Введите индекс записи для редактирования: '))
                     transaction = wallet.transactions[index]
                     data = input_transaction_data(transaction)
                     wallet.edit_transaction(index, **data)
                 case '5':
-                    query = input("Введите поисковый запрос: ")
+                    query = input('Введите поисковый запрос: ')
                     transactions = wallet.search_transactions(query)
                     for index, record in transactions:
-                        print(f"Индекс: {index}, Транзакция: {record.model_dump()}")
+                        print(f'Индекс: {index}, Транзакция: {record.model_dump()}')
                 case '6':
                     wallet.display_balance()
                 case '7':
                     break
                 case _:
-                    print("Некорректный ввод, попробуйте еще раз.")
+                    print('Некорректный ввод, попробуйте еще раз.')
         except ValueError as e:
             print(e)
         except IndexError:
-            print("Транзакция с таким индексом не найдена.")
+            print('Транзакция с таким индексом не найдена.')
         except Exception as e:
-            print(f"Произошла ошибка: {e}")
+            print(f'Произошла ошибка: {e}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
