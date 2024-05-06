@@ -11,10 +11,10 @@ class Transaction(BaseModel):
     description: str = Field('Описание', description='Описание транзакции')
 
     @field_validator('date')
-    def validate_date(cls, v):
+    def validate_date(cls, value_date: str):
         try:
-            datetime.strptime(v, '%Y-%m-%d')
-            return v
+            datetime.strptime(value_date, '%Y-%m-%d')
+            return value_date
         except ValueError:
             raise ValueError('Неверный формат даты. Используйте формат YYYY-MM-DD.')
 
@@ -35,9 +35,9 @@ class Wallet:
     def load_transactions(self) -> List[Union[Income, Expense]]:
         try:
             with open(self.filename, 'r', encoding='utf-8') as file:
-                transactions_data = json.load(file)
+                transactions = json.load(file)
                 return [
-                    Income(**data) if data['category'] == 'Доход' else Expense(**data) for data in transactions_data
+                    Income(**record) if record['category'] == 'Доход' else Expense(**record) for record in transactions
                 ]
         except FileNotFoundError:
             return []
@@ -45,7 +45,7 @@ class Wallet:
     def save_transactions(self):
         with open(self.filename, 'w', encoding='utf-8') as file:
             json.dump(
-                [t.model_dump() for t in self.transactions],
+                [record.model_dump() for record in self.transactions],
                 file,
                 indent=4,
                 default=str,
@@ -64,23 +64,26 @@ class Wallet:
         self.save_transactions()
 
     def search_transactions(self, query: str) -> List[Union[Income, Expense]]:
-        return [(index, t) for index, t in enumerate(self.transactions) if query in str(t.model_dump().values())]
+        return [
+            (index, record) for index, record in enumerate(self.transactions)
+            if query in str(record.model_dump().values())
+        ]
 
     def display_transactions(self):
         for index, transaction in enumerate(self.transactions):
             print(f'Индекс: {index}, Транзакция: {transaction.model_dump()}')
 
     def display_balance(self):
-        incomes = sum(t.amount for t in self.transactions if isinstance(t, Income))
-        expenses = sum(t.amount for t in self.transactions if isinstance(t, Expense))
+        incomes = sum(record.amount for record in self.transactions if isinstance(record, Income))
+        expenses = sum(record.amount for record in self.transactions if isinstance(record, Expense))
         balance = incomes - expenses
         print(f'Баланс: {balance}')
         print(f'Доходы: {incomes}')
         print(f'Расходы: {expenses}')
 
 
-def input_transaction_data(transaction: Optional[Transaction] = None) -> dict:
-    data = {}
+def input_transaction(transaction: Optional[Transaction] = None) -> dict:
+    record = {}
     if transaction:
         for field in transaction.model_fields:
             if field != 'category':  # Пропускаем поле категории
@@ -89,13 +92,13 @@ def input_transaction_data(transaction: Optional[Transaction] = None) -> dict:
                     f'({getattr(transaction, field)}): '
                 )
                 if value:
-                    data[field] = value
-        data['category'] = transaction.category
+                    record[field] = value
+        record['category'] = transaction.category
     else:
-        data['date'] = input_date('Введите дату (YYYY-MM-DD): ')
-        data['amount'] = input_amount('Введите сумму: ')
-        data['description'] = input('Введите описание: ')
-    return data
+        record['date'] = input_date('Введите дату (YYYY-MM-DD): ')
+        record['amount'] = input_amount('Введите сумму: ')
+        record['description'] = input('Введите описание: ')
+    return record
 
 
 def input_date(prompt: str) -> str:
@@ -136,17 +139,17 @@ def main():
                 case '1':
                     wallet.display_transactions()
                 case '2':
-                    data = input_transaction_data()
+                    data = input_transaction()
                     income = Income(**data)
                     wallet.add_transaction(income)
                 case '3':
-                    data = input_transaction_data()
+                    data = input_transaction()
                     expense = Expense(**data)
                     wallet.add_transaction(expense)
                 case '4':
                     index = int(input('Введите индекс записи для редактирования: '))
                     transaction = wallet.transactions[index]
-                    data = input_transaction_data(transaction)
+                    data = input_transaction(transaction)
                     wallet.edit_transaction(index, **data)
                 case '5':
                     query = input('Введите поисковый запрос: ')
@@ -159,12 +162,12 @@ def main():
                     break
                 case _:
                     print('Некорректный ввод, попробуйте еще раз.')
-        except ValueError as e:
-            print(e)
+        except ValueError as error:
+            print(error)
         except IndexError:
             print('Транзакция с таким индексом не найдена.')
-        except Exception as e:
-            print(f'Произошла ошибка: {e}')
+        except Exception as error:
+            print(f'Произошла неизвестная ошибка: {error}')
 
 
 if __name__ == '__main__':
